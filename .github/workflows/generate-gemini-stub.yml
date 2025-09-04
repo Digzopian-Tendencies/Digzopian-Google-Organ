@@ -1,0 +1,32 @@
+name: Generate Gemini Stub if Google secrets missing
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check for Google secrets
+        run: |
+          missing=0
+          for secret in GOOGLE_DRIVE_CREDENTIALS GOOGLE_BIGQUERY_CREDENTIALS GOOGLE_VERTEXAI_CREDENTIALS; do
+            if [ -z "${!secret}" ]; then
+              missing=1
+              ts=$(date +%Y%m%d-%H%M%S)
+              echo "Stub for $secret at $ts"
+              mkdir -p stubs
+              echo "Gemini: Please provision $secret for Digzopian Org at $ts" > stubs/$secret-$ts.stub
+            fi
+          done
+          if [ $missing -eq 0 ]; then
+            echo "✅ All Google secrets present."
+          fi
+      - name: Commit stubs if generated
+        run: |
+          git config user.name "Digital-Digzo"
+          git config user.email "digzopian.tendencies@gmail.com"
+          git add stubs/ || echo "No stubs"
+          git commit -m "📝 Generated Gemini stubs for missing Google secrets" || echo "No changes"
+          git push origin main || echo "No push"
